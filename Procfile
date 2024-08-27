@@ -1,0 +1,1 @@
+web: streamlit run RMQ_DT_716_Functional_UI_withdocstrings.py
