@@ -1130,9 +1130,8 @@ def plot_tukey_CIs(data, group_col, value_col):
         plt.title(f'Tukey Simultaneous 95% CIs\nDifferences of Means for {value_col}')
         plt.xlabel('Difference of Means')
         plt.grid()
-        fig=plt.gcf()
-        plt.close(fig)
-        return fig
+        plt.close()
+        return plt.gcf()
     except Exception as e:
         print(f"Skipping Tukey HSD plot for {value_col}: {e}")
         return None
@@ -1154,9 +1153,9 @@ def plot_interval(data, group_col, value_col):
     plt.ylabel(value_col)
     plt.xlabel(group_col)
     plt.grid()
-    fig=plt.gcf()
-    plt.close(fig)
-    return fig
+    plt.close()
+    return plt.gcf()
+
 def plot_individual_value(data, group_col, value_col):
     """
     Plots the individual value plot for the given value column against the group column.
@@ -1180,9 +1179,8 @@ def plot_individual_value(data, group_col, value_col):
         plt.ylabel(value_col)
         plt.xlabel(group_col)
         plt.grid()
-        fig=plt.gcf()
-        plt.close(fig)
-        return fig
+        plt.close()
+        return plt.gcf()
     except Exception as e:
         st.error(f"An error occurred while plotting: {e}")
         return None
@@ -1212,9 +1210,8 @@ def plot_boxplot(data, group_col, value_col):
         plt.ylabel(value_col)
         plt.xlabel(group_col)
         plt.grid()
-        fig=plt.gcf()
-        plt.close(fig)
-        return fig
+        plt.close()
+        return plt.gcf()
     except ValueError as e:
         print(f"Error while plotting boxplot for {value_col}: {e}")
         return None
@@ -1272,7 +1269,6 @@ def plot_residuals(data, group_col, value_col):
     axs[1, 1].axhline(0, color='r', linestyle='--')
     
     plt.tight_layout()
-    fig=plt.gcf()
     plt.close(fig)
     return fig
 
@@ -1296,36 +1292,30 @@ def plot_all_visualizations(data):
                 print(f"Plotting for Attribute: {attr}, Column: {value_col}")
                 
                 # Create Tukey's HSD plot
-                fig = plot_tukey_CIs(attr_data, group_col, value_col, attr)
+                fig = plot_tukey_CIs(attr_data, group_col, value_col)
                 if fig:
-                    print(f"Storing Tukey's HSD plot for {attr}_{value_col} under 'tukey_CIs'")
                     plots_dict.setdefault('tukey_CIs', []).append((f'{attr}_{value_col}', fig))
                 
                 # Create Interval plot
-                fig = plot_interval(attr_data, group_col, value_col, attr)
+                fig = plot_interval(attr_data, group_col, value_col)
                 if fig:
-                    print(f"Storing Interval plot for {attr}_{value_col} under 'interval'")
                     plots_dict.setdefault('interval', []).append((f'{attr}_{value_col}', fig))
                 
                 # Create Individual Value plot
-                fig = plot_individual_value(attr_data, group_col, value_col, attr)
+                fig = plot_individual_value(attr_data, group_col, value_col)
                 if fig:
-                    print(f"Storing Individual Value plot for {attr}_{value_col} under 'individual_value'")
                     plots_dict.setdefault('individual_value', []).append((f'{attr}_{value_col}', fig))
                 
                 # Create Boxplot
-                fig = plot_boxplot(attr_data, group_col, value_col, attr)
+                fig = plot_boxplot(attr_data, group_col, value_col)
                 if fig:
-                    print(f"Storing Boxplot for {attr}_{value_col} under 'boxplot'")
                     plots_dict.setdefault('boxplot', []).append((f'{attr}_{value_col}', fig))
                 
                 # Create Residuals plot
-                fig = plot_residuals(attr_data, group_col, value_col, attr)
+                fig = plot_residuals(attr_data, group_col, value_col)
                 if fig:
-                    print(f"Storing Residuals plot for {attr}_{value_col} under 'residuals'")
                     plots_dict.setdefault('residuals', []).append((f'{attr}_{value_col}', fig))
 
-                    
 def main():
     """
     The main function that runs the Streamlit app, handles file uploads, and performs data analysis.
