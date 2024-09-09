@@ -8,3 +8,4 @@ statsmodels
 fuzzywuzzy
 openpyxl
 Pillow
+python-Levenshtein
