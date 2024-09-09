@@ -197,7 +197,8 @@ def calculate_statistics(df, description_column, group_column, granularity_choic
     grouped = df.groupby(['Attributes', group_column])
     
     def group_stats(group):
-        group = group.drop(columns=[description_column, 'Attributes', group_column])
+        columns_to_drop = [col for col in [description_column, 'Attributes', group_column] if col in group.columns]
+        group = group.drop(columns=columns_to_drop)
         stats = {
             'N': group.shape[0],
             'N*': group.isnull().sum(),
@@ -210,7 +211,7 @@ def calculate_statistics(df, description_column, group_column, granularity_choic
         }
         return pd.DataFrame(stats)
     
-    stats_df = grouped.apply(group_stats).reset_index()
+    stats_df = grouped.apply(lambda x: group_stats(x.drop(columns=[description_column, 'Attributes', group_column]))).reset_index()
     return stats_df
 
 def calculate_and_display_statistics(final_df, granularity_choice):
@@ -886,7 +887,7 @@ def round_numeric_columns(df, decimals=3):
     Returns:
     pd.DataFrame: The modified DataFrame with rounded numeric columns.
     """
-    return df.applymap(lambda x: round(x, decimals) if isinstance(x, (int, float)) else x)
+    return df.apply(lambda col: col.round(decimals) if col.dtype.kind in 'fiu' else col)
 
 def display_results(test_choice, trial_group, incumbent_group):
     """
@@ -956,7 +957,7 @@ def display_results(test_choice, trial_group, incumbent_group):
 
     filtered_df = table3_df_global[table3_df_global['Metric'].isin(['P-Value', 'Diff (Trial - Incumbent)'])]
     columns_to_convert = filtered_df.columns.difference(['Product', 'Metric'])
-    filtered_df[columns_to_convert] = filtered_df[columns_to_convert].apply(pd.to_numeric, errors='coerce')
+    filtered_df.loc[:, columns_to_convert] = filtered_df.loc[:, columns_to_convert].apply(pd.to_numeric, errors='coerce')
     filtered_df = filtered_df.replace(0, np.nan)
     results = []
 
@@ -1023,6 +1024,11 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
     table2_df_global = round_numeric_columns(table2_df_global)
     table3_df_global = round_numeric_columns(table3_df_global)
     table4_df_global = round_numeric_columns(table4_df_global)
+
+    # Convert Table 3 and Table 4 to strings
+    table3_df_global = table3_df_global.astype(str)
+    table4_df_global = table4_df_global.astype(str)
+
     
     # Display the tables in Streamlit
     st.write("Table 1")
