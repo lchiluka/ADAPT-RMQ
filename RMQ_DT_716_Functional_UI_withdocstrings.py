@@ -1003,23 +1003,21 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill, Border, Side
 import streamlit as st
 import io
+import os
 
 def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, table4_df_global, plots_dict):
     """
     Saves the statistical analysis results and plots to an Excel file with appropriate formatting.
-
-    Parameters:
-    table1_df_global (pd.DataFrame): The first table containing statistics.
-    table2_df_global (pd.DataFrame): The second table containing test results.
-    table3_df_global (pd.DataFrame): The third table containing comparative results.
-    table4_df_global (pd.DataFrame): The fourth table containing summary and assessment.
-    plots_dict (dict): Dictionary of plots to save into Excel.
     """
+    # Create the temporary directory path
+    temp_dir = '/tmp'
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
 
-    # Initialize an in-memory bytes buffer for the Excel file
-    output_path = io.BytesIO()
+    # Define the output file path in the /tmp directory
+    output_file_path = os.path.join(temp_dir, "output_tables.xlsx")
 
-    # Round numerical columns of all dataframes
+    # Round numeric columns of all dataframes
     table1_df_global = round_numeric_columns(table1_df_global)
     table2_df_global = round_numeric_columns(table2_df_global)
     table3_df_global = round_numeric_columns(table3_df_global)
@@ -1029,23 +1027,12 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
     table3_df_global = table3_df_global.astype(str)
     table4_df_global = table4_df_global.astype(str)
 
-    
-    # Display the tables in Streamlit
-    st.write("Table 1")
-    st.write(table1_df_global)
-    st.write("Table 2")
-    st.write(table2_df_global)
-    st.write("Table 3")
-    st.write(table3_df_global)
-    st.write("Table 4")
-    st.write(table4_df_global)
-
-    # Save the first table to the Excel file
-    with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+    # Save the first table to the Excel file in /tmp directory
+    with pd.ExcelWriter(output_file_path, engine='openpyxl') as writer:
         table1_df_global.to_excel(writer, sheet_name='tables', startrow=0, index=False)
 
-    output_path.seek(0)  # Reset buffer position to the start
-    book = load_workbook(output_path)
+    # Load the saved Excel workbook
+    book = load_workbook(output_file_path)
     sheet = book['tables']
 
     # Styling definitions
@@ -1094,48 +1081,28 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
     for df in [table2_df_global, table3_df_global, table4_df_global]:
         start_row = write_dataframe_to_excel(sheet, df, start_row, header_font, header_fill, thin_border)
 
-    # Save the workbook to the output path
-    output_path.seek(0)
-    book.save(output_path)
+    # Save the workbook after editing
+    book.save(output_file_path)
 
-    # Function to save plots to the Excel file
-    def save_plots_to_excel(plots_dict, filename):
-        book = load_workbook(filename)
-        for plot_type, plots in plots_dict.items():
-            if plot_type[:31] in book.sheetnames:
-                worksheet = book[plot_type[:31]]
-            else:
-                worksheet = book.create_sheet(plot_type[:31])
-            row = 1
-            for value_col, fig in plots:
-                if fig is not None:  # Check if the figure is valid
-                    img_data = io.BytesIO()
-                    fig.savefig(img_data, format='png')
-                    img_data.seek(0)
-                    image = OpenpyxlImage(img_data)
-                    worksheet.add_image(image, f'A{row}')
-                    worksheet[f'B{row}'] = value_col
-                    row += 50
-                else:
-                    print(f"Plot for {value_col} in {plot_type} could not be saved because the figure is None.")
-        book.save(filename)
-
-    save_plots_to_excel(plots_dict, output_path)
+    # Now we read the file back from /tmp to provide it for download
+    with open(output_file_path, 'rb') as f:
+        output_data = f.read()
 
     # Log download action in Streamlit session state
     if not st.session_state.get('logged_download', False):
         log_action("Downloaded Excel file")
         st.session_state['logged_download'] = True
 
-    # Provide download button
+    # Provide the download button with the file from /tmp
     st.download_button(
         label="Download Excel File",
-        data=output_path.getvalue(),
+        data=output_data,
         file_name="output_tables.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-    st.write("**Output is Processed Successfully**")
+    
+    # Optionally, print a success message
+    st.write("**Excel file has been created and is ready for download.**")
 
 
 # Plotting functions for visualization
