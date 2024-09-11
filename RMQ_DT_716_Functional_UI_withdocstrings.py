@@ -996,6 +996,28 @@ def display_results(test_choice, trial_group, incumbent_group):
     
     save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, table4_df_global, plots_dict)
 
+
+def truncate_string_to_three_decimals(value):
+    """
+    Truncates a string representation of a number to 3 decimal places.
+    
+    Parameters:
+    value (str): The string value to be truncated.
+    
+    Returns:
+    str: The truncated string value.
+    """
+    # Check if the value is a string and contains a decimal point
+    if isinstance(value, str) and '.' in value:
+        # Split the string into the integer and decimal part
+        integer_part, decimal_part = value.split('.')
+        # Truncate the decimal part to 3 digits
+        truncated_decimal = decimal_part[:3]
+        # Return the truncated value
+        return f"{integer_part}.{truncated_decimal}"
+    return value  # Return the value as is if no truncation is needed
+
+
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image as OpenpyxlImage
@@ -1026,6 +1048,8 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
     # Convert Table 3 and Table 4 to strings
     table3_df_global = table3_df_global.astype(str)
     table4_df_global = table4_df_global.astype(str)
+
+    table3_df_global = table3_df_global.applymap(truncate_string_to_three_decimals)
 
     # Save the first table to the Excel file in /tmp directory
     with pd.ExcelWriter(output_file_path, engine='openpyxl') as writer:
@@ -1275,7 +1299,82 @@ def plot_all_visualizations(data):
                 fig_boxplot = plot_boxplot(attr_data, group_col, value_col)
                 if fig_boxplot:
                     plots_dict.setdefault('boxplot', []).append((f'{attr}_{value_col}', fig_boxplot))
+import io
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from openpyxl.utils import get_column_letter
+import os
 
+def save_category_plots_to_one_excel(plots_dict):
+    """
+    Saves all plots from each category in plots_dict into one Excel file with multiple sheets in memory,
+    and provides a download button. The corresponding Attribute is printed as part of the Excel sheet.
+    """
+    from openpyxl.drawing.image import Image as OpenpyxlImage
+    from io import BytesIO
+
+    # Create a new Excel workbook
+    wb = Workbook()
+
+    # Define image size for the plots
+    image_size = (500, 300)  # Adjust image size as needed
+
+    # Loop through each category in the plots_dict
+    for plot_category, plot_list in plots_dict.items():
+        # Create a new sheet for this category
+        new_sheet = wb.create_sheet(title=plot_category)
+
+        image_row = 1  # Start in the first row for each new plot
+        image_col = 1  # Start in the first column for each new plot
+
+        print(f"Processing category: {plot_category}")
+
+        for plot_index, (plot_name, fig) in enumerate(plot_list):
+            # Split the plot_name to extract the Attribute
+            attr = plot_name.split('_')[0]
+
+            # Write the attribute as text in the Excel sheet
+            new_sheet.cell(row=image_row, column=image_col, value=f'Attribute: {attr}')
+
+            # Move to the next row for the image
+            image_row += 1
+
+            # Save the plot as an image in memory using BytesIO
+            image_stream = BytesIO()
+            fig.savefig(image_stream, format='PNG')  # Save figure in memory as PNG
+            image_stream.seek(0)  # Go to the start of the stream
+
+            # Insert the image into the Excel sheet from memory
+            img = OpenpyxlImage(image_stream)
+            img.width, img.height = image_size
+
+            # Specify the cell to place the image (adjust row and column for layout)
+            cell_position = f'{get_column_letter(image_col)}{image_row}'
+            new_sheet.add_image(img, cell_position)
+
+            # Increment the row for the next plot
+            image_row += img.height // 20  # Adjust row based on image height
+
+            # Close the figure after saving it in memory
+            plt.close(fig)
+
+    # Remove the default first sheet created by openpyxl if it's empty
+    default_sheet = wb['Sheet']
+    if len(default_sheet._cells) == 0:
+        wb.remove(default_sheet)
+
+    # Save the workbook to a BytesIO buffer
+    excel_buffer = BytesIO()
+    wb.save(excel_buffer)
+    excel_buffer.seek(0)  # Set the buffer's current position to the beginning
+
+    # Generate the download button in Streamlit
+    st.download_button(
+        label="Download Plots Excel File",
+        data=excel_buffer.getvalue(),
+        file_name="plot_visualizations.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 
 def main():
@@ -1340,6 +1439,7 @@ def main():
                             calculate_and_display_statistics(final_df_global, granularity_choice)
                             perform_anderson_darling_test(final_df_global)
                             plot_all_visualizations(final_df_global)
+                            save_category_plots_to_one_excel(plots_dict)
                             
                             if table1_df_global is not None:
                                 unique_groups = table1_df_global['GROUP'].unique().tolist()
@@ -1359,6 +1459,7 @@ def main():
                     st.write(final_df_global)
                     perform_anderson_darling_test(final_df_global)
                     plot_all_visualizations(final_df_global)
+                    save_category_plots_to_one_excel(plots_dict)
                     
                     if table1_df_global is not None:
                         unique_groups = table1_df_global['GROUP'].unique().tolist()
