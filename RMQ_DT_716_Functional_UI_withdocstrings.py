@@ -331,7 +331,7 @@ def add_attributes_column(final_df, granularity_choice):
 
 def prompt_outlier_removal(final_df, outliers_df, granularity_choice):
     """
-    Prompts the user to remove detected outliers from the DataFrame.
+    Prompts the user to remove or replace detected outliers with NaN in the DataFrame.
 
     Parameters:
     final_df (pd.DataFrame): The input DataFrame.
@@ -339,7 +339,7 @@ def prompt_outlier_removal(final_df, outliers_df, granularity_choice):
     granularity_choice (str): The selected granularity level.
 
     Returns:
-    pd.DataFrame: The modified DataFrame after outlier removal.
+    pd.DataFrame: The modified DataFrame after outlier handling.
     """
     final_df = add_attributes_column(final_df, granularity_choice)
     st.write(outliers_df)
@@ -353,13 +353,15 @@ def prompt_outlier_removal(final_df, outliers_df, granularity_choice):
         column = row['Column']
         outlier_value = row['Outlier']
         
-        decision = st.radio(f"Do you want to remove the outlier {outlier_value} from {attr} in column {column}?", ('Yes', 'No'), key=index)
+        # Prompt the user to decide whether to replace the outlier with NaN or leave it
+        decision = st.radio(f"Do you want to replace the outlier {outlier_value} from {attr} in column {column} with NaN?", 
+                            ('Yes, replace with NaN', 'No, keep the value'), key=index)
         
-        if decision == 'Yes':
-            final_df = final_df[~((final_df[column] == outlier_value) & (final_df['Attributes'] == attr))]
-            st.write(f"Outlier {outlier_value} from {attr} in column {column} removed.")
+        if decision == 'Yes, replace with NaN':
+            final_df.loc[(final_df[column] == outlier_value) & (final_df['Attributes'] == attr), column] = np.nan
+            st.write(f"Outlier {outlier_value} from {attr} in column {column} replaced with NaN.")
         else:
-            st.write(f"Outlier {outlier_value} from {attr} in column {column} not removed.")
+            st.write(f"Outlier {outlier_value} from {attr} in column {column} kept as is.")
     
     return final_df
 
@@ -376,7 +378,16 @@ def interactive_sap_filter_and_select():
         sap_options = updated_data['SAP'].unique().tolist()
         sap_options.insert(0, 'Select SAPs')
 
-        selected_saps = st.multiselect('Select SAPs', sap_options)
+        # Add a checkbox for selecting all SAPs
+        select_all_saps = st.checkbox('Select All SAPs')
+
+        
+        # If the checkbox is selected, pre-populate the multiselect with all SAPs
+        if select_all_saps:
+            selected_saps = st.multiselect('Select SAPs', sap_options[1:], sap_options[1:])
+        else:
+            selected_saps = st.multiselect('Select SAPs', sap_options)
+
         if 'Select SAPs' not in selected_saps and selected_saps:
             filtered_df = updated_data[updated_data['SAP'].isin(selected_saps)]
             st.write(filtered_df)
@@ -391,12 +402,16 @@ def interactive_sap_filter_and_select():
                     updated_data.loc[updated_data['SAP'].isin(merge_selected_saps), 'Merge-Key'] = merge_key
                     st.write(f"Merged Description: {merged_description}")
             
-            filtered_df['SAP-Desc'] = filtered_df['SAP'].map(updated_data.drop_duplicates(subset='SAP').set_index('SAP')['SAP-Desc'])
-            filtered_df['Merge-Key'] = filtered_df['SAP'].map(updated_data.drop_duplicates(subset='SAP').set_index('SAP')['Merge-Key'])
+            filtered_df.loc[:, 'SAP-Desc'] = filtered_df['SAP'].map(updated_data.drop_duplicates(subset='SAP').set_index('SAP')['SAP-Desc'])
+            filtered_df.loc[:, 'Merge-Key'] = filtered_df['SAP'].map(updated_data.drop_duplicates(subset='SAP').set_index('SAP')['Merge-Key'])
+
+
             column_options = create_column_dropdown(filtered_df)
             column_options.insert(0, 'Select Columns')
+
             selected_columns = st.multiselect('Select Columns', column_options)
-            if 'Select Columns' not in selected_columns and selected_columns:
+
+            if 'Select Columns' not in selected_columns:
                 final_df = select_columns(filtered_df, selected_columns)
                 target_column = st.selectbox('Select Target Column', ['Select Target Column'] + final_df.columns.tolist(), index=0)
                 if target_column != 'Select Target Column':
@@ -1416,7 +1431,14 @@ def main():
             if granularity_choice == 'Upto Top and Bottom Facer':
                 description_options = data['DESCRIPTION'].unique().tolist()
                 description_options.insert(0, 'Select Descriptions')
-                selected_descriptions = st.multiselect('**Select Descriptions**', description_options)
+                # Add a checkbox for selecting all descriptions
+                select_all_descriptions = st.checkbox('Select All Descriptions')
+
+                # If the checkbox is selected, pre-populate the multiselect with all descriptions
+                if select_all_descriptions:
+                    selected_descriptions = st.multiselect('Select Descriptions', description_options[1:], description_options[1:])
+                else:
+                    selected_descriptions = st.multiselect('Select Descriptions', description_options)
                 
                 if 'Select Descriptions' not in selected_descriptions and selected_descriptions:
                     filtered_df = filter_dataframe(selected_descriptions)
