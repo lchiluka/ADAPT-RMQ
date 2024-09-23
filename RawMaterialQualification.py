@@ -1045,6 +1045,7 @@ import os
 def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, table4_df_global, plots_dict):
     """
     Saves the statistical analysis results and plots to an Excel file with appropriate formatting.
+    Handles the case when table4_df_global is empty.
     """
     # Create the temporary directory path
     temp_dir = '/tmp'
@@ -1058,11 +1059,14 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
     table1_df_global = round_numeric_columns(table1_df_global)
     table2_df_global = round_numeric_columns(table2_df_global)
     table3_df_global = round_numeric_columns(table3_df_global)
-    table4_df_global = round_numeric_columns(table4_df_global)
+    
+    if not table4_df_global.empty:
+        table4_df_global = round_numeric_columns(table4_df_global)
 
     # Convert Table 3 and Table 4 to strings
     table3_df_global = table3_df_global.astype(str)
-    table4_df_global = table4_df_global.astype(str)
+    if not table4_df_global.empty:
+        table4_df_global = table4_df_global.astype(str)
 
     table3_df_global = table3_df_global.applymap(truncate_string_to_three_decimals)
 
@@ -1117,8 +1121,14 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
 
     # Write additional tables to the Excel file
     start_row = len(table1_df_global) + 5
-    for df in [table2_df_global, table3_df_global, table4_df_global]:
+    for df in [table2_df_global, table3_df_global]:
         start_row = write_dataframe_to_excel(sheet, df, start_row, header_font, header_fill, thin_border)
+
+    # Handle table4_df_global being empty
+    if table4_df_global.empty:
+        st.warning("There are no statistically different results, skipping Table 4.")
+    else:
+        start_row = write_dataframe_to_excel(sheet, table4_df_global, start_row, header_font, header_fill, thin_border)
 
     # Save the workbook after editing
     book.save(output_file_path)
@@ -1142,6 +1152,7 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
     
     # Optionally, print a success message
     st.write("**Excel file has been created and is ready for download.**")
+
 
 
 # Plotting functions for visualization
