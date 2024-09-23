@@ -10281,3 +10281,81 @@ dtype: object
 2024-09-12 09:23:38,833 - User action: Accessed App
 2024-09-12 09:25:35,052 - User action: Downloaded Excel file
 2024-09-12 09:34:27,695 - User action: Accessed App
+2024-09-23 08:42:18,097 - User action: Accessed App
+2024-09-23 08:45:48,185 - User action: Accessed App
+2024-09-23 08:50:02,448 - User action: Accessed App
+2024-09-23 08:52:54,970 - User action: Accessed App
+2024-09-23 09:15:20,686 - User action: Accessed App
+2024-09-23 09:19:08,638 - User action: Accessed App
+2024-09-23 09:21:18,689 - User action: Accessed App
+2024-09-23 09:24:33,425 - User action: Accessed App
+2024-09-23 09:27:56,065 - User action: Accessed App
+2024-09-23 09:29:17,483 - User action: Accessed App
+2024-09-23 10:03:53,680 - User action: Accessed App
+2024-09-23 10:13:46,680 - User action: Accessed App
+2024-09-23 10:23:56,742 - User action: Accessed App
+2024-09-23 10:27:55,866 - User action: Accessed App
+2024-09-23 10:31:10,866 - User action: Accessed App
+2024-09-23 10:37:45,721 - User action: Accessed App
+2024-09-23 10:45:33,715 - User action: Accessed App
+2024-09-23 10:46:40,826 - User action: Accessed App
+2024-09-23 10:49:44,828 - User action: Accessed App
+2024-09-23 11:06:47,706 - User action: Accessed App
+2024-09-23 11:10:29,839 - User action: Accessed App
+2024-09-23 11:17:59,849 - User action: Accessed App
+2024-09-23 11:20:22,502 - User action: Accessed App
+2024-09-23 11:24:57,452 - User action: Accessed App
+2024-09-23 11:28:35,597 - User action: Accessed App
+2024-09-23 11:32:28,359 - User action: Accessed App
+2024-09-23 11:38:30,323 - User action: Accessed App
+2024-09-23 11:39:25,302 - User action: Accessed App
+2024-09-23 11:42:11,705 - User action: Accessed App
+2024-09-23 11:42:22,446 - User action: Accessed App
+2024-09-23 11:44:51,677 - User action: Accessed App
+2024-09-23 11:51:23,677 - User action: Accessed App
+2024-09-23 11:55:47,417 - User action: Accessed App
+2024-09-23 12:11:28,477 - User action: Accessed App
+2024-09-23 12:14:40,581 - User action: Accessed App
+2024-09-23 12:16:10,154 - User action: Accessed App
+2024-09-23 12:17:10,471 - User action: Downloaded Excel file
+2024-09-23 12:17:46,341 - User action: Accessed App
+2024-09-23 12:18:27,749 - User action: Downloaded Excel file
+2024-09-23 12:20:22,882 - User action: Accessed App
+2024-09-23 12:21:01,628 - User action: Downloaded Excel file
+2024-09-23 12:26:16,139 - User action: Accessed App
+2024-09-23 12:26:57,889 - User action: Downloaded Excel file
+2024-09-23 12:33:38,677 - User action: Accessed App
+2024-09-23 12:34:25,652 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:25,656 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:25,768 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:25,768 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:25,969 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:25,969 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:26,015 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:26,015 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:26,381 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:34:26,382 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:00,285 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:00,297 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:00,398 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:00,398 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:00,634 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:00,634 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:00,690 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:00,697 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:01,044 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:01,048 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:25,660 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:25,665 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:25,790 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:25,793 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:26,014 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:26,014 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:26,077 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:26,080 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:26,320 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:26,326 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:27,116 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:27,130 - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2024-09-23 12:35:30,705 - User action: Downloaded Excel file
+2024-09-23 12:46:42,876 - User action: Accessed App
