@@ -706,58 +706,102 @@ def equal_variance_test():
     st.write("\nANOVA/Welch Test Results (Simplified):")
     st.write(round_numeric_columns(anova_welch_df_simple))
 
+import numpy as np
+import pandas as pd
+from scipy.stats import chi2_contingency, iqr
+
 def moods_median_test(group_df, attr):
     """
-    Conducts Mood's Median test for a specific attribute and returns the results.
+    Conducts Mood's Median test for a specific attribute and returns the results with additional statistics.
 
     Parameters:
     group_df (pd.DataFrame): The DataFrame for the specific attribute group.
     attr (str): The attribute value.
 
     Returns:
-    list: A list of results from Mood's Median test.
+    list: A list of results from Mood's Median test, including descriptive statistics.
     """
     numeric_columns = group_df.select_dtypes(include='number').columns
     results = []
     
     for column in numeric_columns:
         if column != 'GROUP':
+            # Prepare groups of data based on the 'GROUP' column
             groups = [group[column].dropna().values for name, group in group_df.groupby('GROUP')]
             groups = [group for group in groups if len(group) > 0]
+            
             if len(groups) < 2:
                 continue
+            
             try:
-                stat, p_value, med, tbl = median_test(*groups)
-                if p_value > 0.05:
-                    result = 'Equal'
-                else:
-                    result = 'Diff'
+                # Calculate Overall Median
+                all_data = np.concatenate(groups)
+                overall_median = np.median(all_data)
                 
+                # Build the contingency table (N ≤ Overall Median, N > Overall Median)
+                counts_leq_median = {group: np.sum(values <= overall_median) for group, values in zip(group_df['GROUP'].unique(), groups)}
+                counts_gt_median = {group: np.sum(values > overall_median) for group, values in zip(group_df['GROUP'].unique(), groups)}
+                
+                # Create the contingency table for Chi-Square calculation
+                contingency_table = np.array([[counts_leq_median[group], counts_gt_median[group]] for group in group_df['GROUP'].unique()])
+                
+                # Perform the Chi-Square test with continuity correction
+                chi2_stat, p_value, _, _ = chi2_contingency(contingency_table, correction=False)  # Yates' correction
+                
+                # Calculate descriptive statistics for the groups
                 group_stats = group_df.groupby('GROUP')[column].describe().unstack()
+                medians = group_stats['50%'].to_dict()
+                counts = group_stats['count'].to_dict()
+
+                # Calculate interquartile range (Q3 - Q1)
+                iqr_values = iqr(all_data)
+
+                # Confidence interval for the median (95% CI)
+                # Approximating with the normal distribution for simplicity
+                median_ci_lower = np.percentile(all_data, 2.5)
+                median_ci_upper = np.percentile(all_data, 97.5)
+                median_ci = (median_ci_lower, median_ci_upper)
+
+                # Determine if the result is statistically significant
+                result = 'Equal' if p_value > 0.05 else 'Diff'
+                
                 result_data = {
                     'Attributes': attr,
                     'Column': column,
                     'Group': group_df['GROUP'].unique().tolist(),
-                    'Median': group_stats['50%'].to_dict(),
-                    'N': group_stats['count'].to_dict(),
+                    'Median': medians,
+                    'N': counts,
+                    'N <= Overall Median': counts_leq_median,
+                    'N > Overall Median': counts_gt_median,
+                    'Q3 – Q1': iqr_values,
                     'P-Value': p_value,
+                    'Chi-Square': chi2_stat,  # Chi-Square statistic from Mood's Median test
                     'Result': result,
                     'Test Conducted': "Mood's Median"
                 }
                 results.append(result_data)
+
             except ValueError as e:
+                # Handle cases where the test could not be performed
                 result_data = {
                     'Attributes': attr,
                     'Column': column,
                     'Group': group_df['GROUP'].unique().tolist(),
                     'Median': np.nan,
                     'N': len(group_df),
+                    'N <= Overall Median': np.nan,
+                    'N > Overall Median': np.nan,
+                    'Q3 – Q1': np.nan,
                     'P-Value': np.nan,
+                    'Chi-Square': np.nan,
                     'Result': 'N/A',
                     'Test Conducted': "Mood's Median"
                 }
                 results.append(result_data)
+    
     return results
+
+
 
 def kruskal_wallis_test(group_df, attr):
     """
