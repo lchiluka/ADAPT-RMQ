@@ -1144,7 +1144,7 @@ def truncate_string_to_three_decimals(value):
     Returns:
     str: The truncated string value.
     """
-    # Check if the value is a string and contains a decimal point
+    # Proceed to truncate the value if it's a string and contains a decimal point
     if isinstance(value, str) and '.' in value:
         # Split the string into the integer and decimal part
         integer_part, decimal_part = value.split('.')
@@ -1152,17 +1152,9 @@ def truncate_string_to_three_decimals(value):
         truncated_decimal = decimal_part[:3]
         # Return the truncated value
         return f"{integer_part}.{truncated_decimal}"
+    
     return value  # Return the value as is if no truncation is needed
 
-
-import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.drawing.image import Image as OpenpyxlImage
-from openpyxl.utils import get_column_letter
-from openpyxl.styles import Font, PatternFill, Border, Side
-import streamlit as st
-import io
-import os
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -1191,16 +1183,24 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
     table1_df_global = round_numeric_columns(table1_df_global)
     table2_df_global = round_numeric_columns(table2_df_global)
     table3_df_global = round_numeric_columns(table3_df_global)
+
+
+    table2_df_global.reset_index(inplace=True)  # Ensures 'Attributes' becomes a regular column
+
     
     if not table4_df_global.empty:
         table4_df_global = round_numeric_columns(table4_df_global)
-
-    # Convert Table 3 and Table 4 to strings
-    table3_df_global = table3_df_global.astype(str)
+    
     if not table4_df_global.empty:
         table4_df_global = table4_df_global.astype(str)
 
-    table3_df_global = table3_df_global.applymap(truncate_string_to_three_decimals)
+    # List of columns to exclude from truncation
+    excluded_columns = ['Product', 'Metric']
+
+    # Apply the truncate function to each column, excluding the specified columns
+    for col in table3_df_global.columns:
+        if col not in excluded_columns:
+            table3_df_global[col] = table3_df_global[col].apply(truncate_string_to_three_decimals)
 
     # Save the first table to the Excel file in /tmp directory
     with pd.ExcelWriter(output_file_path, engine='openpyxl') as writer:
