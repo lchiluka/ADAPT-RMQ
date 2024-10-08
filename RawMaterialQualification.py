@@ -145,16 +145,20 @@ def set_target_column(final_df, selected_column):
     global final_df_global
     df_modified = final_df.copy()
     df_modified.rename(columns={selected_column: 'GROUP'}, inplace=True)
+    df_modified['GROUP'] = df_modified['GROUP'].astype('object')  # Convert target column to categorical
     cols = list(df_modified.columns)
     cols.append(cols.pop(cols.index('GROUP')))
     df_modified = df_modified[cols]
+    
     columns_to_exclude = ['SAP-Desc', 'DESCRIPTION', 'GROUP', 'Attributes']
     for col in df_modified.columns:
         if col not in columns_to_exclude:
             df_modified[col] = pd.to_numeric(df_modified[col], errors='coerce')
+    
     final_df_global = df_modified
     st.write(final_df_global)
     return final_df_global
+
 
 def extract_attributes(description, granularity_choice):
     """
@@ -461,10 +465,10 @@ def plot_standard_deviations(column, group_labels, means, std_devs, p_value_1, p
     Plots standard deviations with multiple comparison intervals.
 
     Parameters:
-    column (str): The column name.
-    group_labels (list): The list of group labels.
-    means (list): The list of means.
-    std_devs (list): The list of standard deviations.
+    column (str): The column name (dependent variable).
+    group_labels (list): The list of group labels (independent variable).
+    means (list): The list of means for each group.
+    std_devs (list): The list of standard deviations for each group.
     p_value_1 (float): The p-value from Levene's test.
     p_value_2 (float): The p-value from ANOVA or Welch's test.
 
@@ -472,16 +476,32 @@ def plot_standard_deviations(column, group_labels, means, std_devs, p_value_1, p
     plt.Figure: The matplotlib figure object.
     """
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.errorbar(means, group_labels, xerr=std_devs, fmt='o', capsize=5, capthick=2, elinewidth=2, linestyle='None')
+
+    # Convert group_labels to categorical to ensure proper spacing
+    group_labels = pd.Categorical(group_labels, categories=np.unique(group_labels), ordered=True)
+
+    # Plot the means with standard deviation bars
+    ax.errorbar(means, group_labels.codes, xerr=std_devs, fmt='o', capsize=5, capthick=2, elinewidth=2, linestyle='None')
+
+    # Add labels and title
     ax.set_title(f'Test for Equal Variances: {column} vs GROUP\nMultiple comparison intervals for the standard deviation, α = 0.05')
     ax.set_ylabel('GROUP')
     ax.set_xlabel('Standard Deviation')
+
+    # Add p-value annotations
     plt.figtext(0.95, 0.9, f"Multiple Comparisons\nP-Value (Levene's Test)\nP-Value: {p_value_1:.3f}", bbox={"facecolor": "lightgray", "alpha": 0.5, "pad": 5})
     plt.figtext(0.95, 0.8, f"P-Value (ANOVA or Welch)\nP-Value: {p_value_2:.3f}", bbox={"facecolor": "lightgray", "alpha": 0.5, "pad": 5})
-    ax.set_yticks(range(len(group_labels)))
-    ax.set_yticklabels(group_labels)
+
+    # Adjust y-axis ticks to reflect categorical labels
+    ax.set_yticks(range(len(group_labels.categories)))
+    ax.set_yticklabels(group_labels.categories)
+
+    # Add grid and close the figure
+    ax.grid(True)
     plt.close(fig)
+
     return fig
+
 
 def handle_choice_1(choice):
     """
@@ -606,7 +626,7 @@ def equal_variance_test():
     """
     Conducts the equal variance test using Levene's test and ANOVA or Welch's test, and displays the results.
     """
-    global global_levene_results, global_anova_welch_results
+    global global_levene_results, global_anova_welch_results, global_anova_welch_df_simple, global_levene_df_simple
     descriptions = final_df_global['Attributes']
     representative_description = find_representative_description(descriptions)
     levene_results = []
@@ -694,17 +714,17 @@ def equal_variance_test():
     global_anova_welch_results = pd.DataFrame(anova_welch_results)
     levene_df_pivot = pd.pivot_table(global_levene_results, index='Attributes', columns='Column', values='Levene P-Value', aggfunc='first')
     anova_welch_df_pivot = pd.pivot_table(global_anova_welch_results, index='Attributes', columns='Column', values='ANOVA/Welch P-Value', aggfunc='first')
-    levene_df_simple = global_levene_results.pivot(index='Attributes', columns='Column', values='Result')
-    anova_welch_df_simple = global_anova_welch_results.pivot(index='Attributes', columns='Column', values='Result')
+    global_levene_df_simple = global_levene_results.pivot(index='Attributes', columns='Column', values='Result')
+    global_anova_welch_df_simple = global_anova_welch_results.pivot(index='Attributes', columns='Column', values='Result')
     
     st.write("Levene's Test Results (with P-Values): (Equal Variance Test)")
     st.write(round_numeric_columns(levene_df_pivot))
     st.write("\nANOVA/Welch Test Results (with P-Values):")
     st.write(round_numeric_columns(anova_welch_df_pivot))
     st.write("\nLevene's Test Results (Simplified): (Equal Variance Test)")
-    st.write(round_numeric_columns(levene_df_simple))
+    st.write(round_numeric_columns(global_levene_df_simple))
     st.write("\nANOVA/Welch Test Results (Simplified):")
-    st.write(round_numeric_columns(anova_welch_df_simple))
+    st.write(round_numeric_columns(global_anova_welch_df_simple))
 
 import numpy as np
 import pandas as pd
@@ -771,8 +791,6 @@ def moods_median_test(group_df, attr):
                     'Group': group_df['GROUP'].unique().tolist(),
                     'Median': medians,
                     'N': counts,
-                    'N <= Overall Median': counts_leq_median,
-                    'N > Overall Median': counts_gt_median,
                     'Q3 – Q1': iqr_values,
                     'P-Value': p_value,
                     'Chi-Square': chi2_stat,  # Chi-Square statistic from Mood's Median test
@@ -789,8 +807,6 @@ def moods_median_test(group_df, attr):
                     'Group': group_df['GROUP'].unique().tolist(),
                     'Median': np.nan,
                     'N': len(group_df),
-                    'N <= Overall Median': np.nan,
-                    'N > Overall Median': np.nan,
                     'Q3 – Q1': np.nan,
                     'P-Value': np.nan,
                     'Chi-Square': np.nan,
@@ -910,11 +926,6 @@ def check_extreme_outliers():
                     valid_groups = [group for group in groups if len(group) > 0]
                     if len(valid_groups) < 2:
                         continue
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    sns.boxplot(x='GROUP', y=column, data=group_df, ax=ax)
-                    plt.title(f"Boxplot of {column} by GROUP for Attributes={attr}")
-                    plt.close(fig)
-                    plots_dict.setdefault('boxplot', []).append((f'{attr}_{column}', fig))
                 
                 for name, group in group_df.groupby('GROUP'):
                     outliers, distances = find_extreme_outliers(group[column])
@@ -935,6 +946,7 @@ def check_extreme_outliers():
     st.write(outliers_df)
     perform_tests_by_attribute()
 
+
 def round_numeric_columns(df, decimals=3):
     """
     Rounds numeric columns in a DataFrame to a specified number of decimal places.
@@ -953,87 +965,142 @@ def display_results(test_choice, trial_group, incumbent_group):
     Displays the results of the statistical analysis and saves them to an Excel file.
 
     Parameters:
-    test_choice (str): The type of test conducted (e.g., 'Non-Parametric Test').
+    test_choice (str): The type of test conducted (e.g., 'Non-Parametric Test' or 'Equal Variance Test').
     trial_group (str): The name of the trial group.
     incumbent_group (str): The name of the incumbent group.
     """
+
     if test_choice == 'Non-Parametric Test':
+        # Use the non-parametric results from global_results and filter the p-values
         npt_results_df = pd.DataFrame(global_results)
         npt_results_df_filtered = npt_results_df.drop_duplicates(subset=['Attributes', 'Column'], keep='last')
         p_values = npt_results_df_filtered[['Attributes', 'Column', 'P-Value']]
+        table2_df_global = npt_results_df_filtered[['Attributes', 'Column', 'P-Value']]
+        
+        # Process and merge the trial and incumbent data from table1_df_global
+        trial_data = table1_df_global[table1_df_global['GROUP'] == trial_group]
+        incumbent_data = table1_df_global[table1_df_global['GROUP'] == incumbent_group]
+
+        # Merge trial and incumbent data based on attributes and variable
+        merged_data = pd.merge(trial_data, incumbent_data, on=['Attributes', 'Variable'], suffixes=('_Trial', '_Incumbent'))
+
+        # Ensure numeric columns are processed correctly
+        merged_data['Mean_Trial'] = pd.to_numeric(merged_data['Mean_Trial'], errors='coerce')
+        merged_data['Mean_Incumbent'] = pd.to_numeric(merged_data['Mean_Incumbent'], errors='coerce')
+        merged_data['N_Trial'] = pd.to_numeric(merged_data['N_Trial'], errors='coerce')
+        merged_data['N_Incumbent'] = pd.to_numeric(merged_data['N_Incumbent'], errors='coerce')
+
+        # Prepare the result DataFrame
+        result_df = pd.DataFrame()
+        result_df['Product'] = merged_data['Attributes']
+        result_df['Group'] = merged_data['Variable']
+        result_df['Sample Size (Trial)'] = merged_data['N_Trial']
+        result_df['Sample Size (Incumbent)'] = merged_data['N_Incumbent']
+        result_df['Trial'] = merged_data['Mean_Trial']
+        result_df['Incumbent'] = merged_data['Mean_Incumbent']
+        result_df['Diff (Trial - Incumbent)'] = merged_data['Mean_Trial'] - merged_data['Mean_Incumbent']
+        result_df['Diff (Trial - Incumbent)'] = pd.to_numeric(result_df['Diff (Trial - Incumbent)'], errors='coerce').round(3)
+
+        # Directly assign the correct p-values from the non-parametric results to avoid incorrect merging
+        result_df = result_df.merge(p_values, left_on=['Product', 'Group'], right_on=['Attributes', 'Column'], how='left')
+        # Convert the P-Value to numeric and round to 4 decimal points
+        result_df['P-Value'] = pd.to_numeric(result_df['P-Value'], errors='coerce').round(4)
+
+        # Determine if there is statistical significance based on the p-values
+        result_df['Statistically Different'] = result_df['P-Value'].apply(lambda p: 'YES' if p < 0.05 else 'NO')
+
+        # Drop unnecessary columns
+        result_df = result_df.drop(columns=['Column', 'Attributes'])
+
+        # Pivot the table for better readability
+        pivot_df = result_df.melt(id_vars=['Product', 'Group'], 
+                                  value_vars=['Sample Size (Trial)', 'Sample Size (Incumbent)', 'Trial', 'Incumbent', 'Diff (Trial - Incumbent)', 'P-Value', 'Statistically Different'],
+                                  var_name='Metric', value_name='Value')
+        pivot_df = pivot_df.pivot_table(index=['Product', 'Metric'], columns='Group', values='Value', aggfunc='first').reset_index()
+        pivot_df.columns = ['_'.join(col).strip() if type(col) is tuple else col for col in pivot_df.columns.values]
+        pivot_df = pivot_df.rename(columns={'Product_': 'Product', 'Metric_': 'Metric'})
+
+        # Sort the metrics in a specific order
+        metric_order = ['Sample Size (Trial)', 'Sample Size (Incumbent)', 'Trial', 'Incumbent', 'Diff (Trial - Incumbent)', 'P-Value', 'Statistically Different']
+        pivot_df['Metric'] = pd.Categorical(pivot_df['Metric'], categories=metric_order, ordered=True)
+        pivot_df = pivot_df.sort_values(by=['Product', 'Metric']).reset_index(drop=True)
+
+        table3_df_global = pivot_df.copy()
+
     else:
-        levene_pivot_pvalue = global_levene_results.pivot(index='Attributes', columns='Column', values='Levene P-Value')
-        levene_pivot_statistic = global_levene_results.pivot(index='Attributes', columns='Column', values='Levene Statistic')
-        levene_pivot_result = global_levene_results.pivot(index='Attributes', columns='Column', values='Result')
+        # Equal Variance Test (ANOVA/Welch)
+        # Extract both Levene's and ANOVA/Welch p-values
+        levene_p_values = global_levene_results[['Attributes', 'Column', 'Levene P-Value']].rename(columns={'Levene P-Value': 'Levene P-Value'})
+        anova_welch_p_values = global_anova_welch_results[['Attributes', 'Column', 'ANOVA/Welch P-Value']].rename(columns={'ANOVA/Welch P-Value': 'P-Value'})
+        
+        # For Equal Variance test, use ANOVA/Welch p-values for summary table and Levene p-values for Table 2
+        p_values = anova_welch_p_values
+        table2_df_global = global_levene_df_simple  # Levene's test results are displayed in Table 2
 
-        anova_welch_pivot_pvalue = global_anova_welch_results.pivot(index='Attributes', columns='Column', values='ANOVA/Welch P-Value')
-        anova_welch_pivot_result = global_anova_welch_results.pivot(index='Attributes', columns='Column', values='Result')
+        # Process and merge the trial and incumbent data from table1_df_global
+        trial_data = table1_df_global[table1_df_global['GROUP'] == trial_group]
+        incumbent_data = table1_df_global[table1_df_global['GROUP'] == incumbent_group]
 
-        equal_variance_choice = "Levene's Test"
-        if equal_variance_choice == "Levene's Test":
-            p_values = levene_pivot_pvalue.reset_index().melt(id_vars=['Attributes'], var_name='Column', value_name='P-Value').dropna(subset=['P-Value'])
-        elif equal_variance_choice == "Welch's ANOVA":
-            p_values = anova_welch_pivot_pvalue.reset_index().melt(id_vars=['Attributes'], var_name='Column', value_name='P-Value').dropna(subset=['P-Value'])
-        else:
-            st.error("Please select a valid test option.")
-            return
+        # Merge trial and incumbent data based on attributes and variable
+        merged_data = pd.merge(trial_data, incumbent_data, on=['Attributes', 'Variable'], suffixes=('_Trial', '_Incumbent'))
 
-    result_df = pd.DataFrame()
-    trial_data = table1_df_global[table1_df_global['GROUP'] == trial_group]
-    incumbent_data = table1_df_global[table1_df_global['GROUP'] == incumbent_group]
-    merged_data = pd.merge(trial_data, incumbent_data, on=['Attributes', 'Variable'], suffixes=('_Trial', '_Incumbent'))
-    merged_data['Mean_Trial'] = pd.to_numeric(merged_data['Mean_Trial'], errors='coerce')
-    merged_data['Mean_Incumbent'] = pd.to_numeric(merged_data['Mean_Incumbent'], errors='coerce')
-    merged_data['N_Trial'] = pd.to_numeric(merged_data['N_Trial'], errors='coerce')
-    merged_data['N_Incumbent'] = pd.to_numeric(merged_data['N_Incumbent'], errors='coerce')
+        # Ensure numeric columns are processed correctly
+        merged_data['Mean_Trial'] = pd.to_numeric(merged_data['Mean_Trial'], errors='coerce')
+        merged_data['Mean_Incumbent'] = pd.to_numeric(merged_data['Mean_Incumbent'], errors='coerce')
+        merged_data['N_Trial'] = pd.to_numeric(merged_data['N_Trial'], errors='coerce')
+        merged_data['N_Incumbent'] = pd.to_numeric(merged_data['N_Incumbent'], errors='coerce')
 
-    result_df['Product'] = merged_data['Attributes']
-    result_df['Group'] = merged_data['Variable']
-    result_df['Sample Size (Trial)'] = merged_data['N_Trial']
-    result_df['Sample Size (Incumbent)'] = merged_data['N_Incumbent']
-    result_df['Trial'] = merged_data['Mean_Trial']
-    result_df['Incumbent'] = merged_data['Mean_Incumbent']
-    result_df['Diff (Trial - Incumbent)'] = merged_data['Mean_Trial'] - merged_data['Mean_Incumbent']
+        # Prepare the result DataFrame
+        result_df = pd.DataFrame()
+        result_df['Product'] = merged_data['Attributes']
+        result_df['Group'] = merged_data['Variable']
+        result_df['Sample Size (Trial)'] = merged_data['N_Trial']
+        result_df['Sample Size (Incumbent)'] = merged_data['N_Incumbent']
+        result_df['Trial'] = merged_data['Mean_Trial']
+        result_df['Incumbent'] = merged_data['Mean_Incumbent']
+        result_df['Diff (Trial - Incumbent)'] = merged_data['Mean_Trial'] - merged_data['Mean_Incumbent']
+        result_df['Diff (Trial - Incumbent)'] = pd.to_numeric(result_df['Diff (Trial - Incumbent)'], errors='coerce').round(3)
 
-    result_df = result_df.merge(p_values, left_on=['Product', 'Group'], right_on=['Attributes', 'Column'], how='left')
-    result_df['P-Value'] = pd.to_numeric(result_df['P-Value'], errors='coerce')
-    result_df['Statistically Different'] = result_df['P-Value'] < 0.05
-    result_df['Statistically Different'] = result_df['Statistically Different'].apply(lambda x: 'YES' if x else 'NO')
-    result_df = result_df.drop(columns=['Column', 'Attributes'])
-    
-    pivot_df = result_df.melt(id_vars=['Product', 'Group'], 
-                   value_vars=['Sample Size (Trial)', 'Sample Size (Incumbent)', 'Trial', 'Incumbent', 'Diff (Trial - Incumbent)', 'P-Value', 'Statistically Different'],
-                   var_name='Metric', value_name='Value')
+        # Directly assign the correct p-values from the ANOVA/Welch results to avoid incorrect merging
+        result_df = result_df.merge(p_values, left_on=['Product', 'Group'], right_on=['Attributes', 'Column'], how='left')
+        # Convert the P-Value to numeric and round to 4 decimal points
+        result_df['P-Value'] = pd.to_numeric(result_df['P-Value'], errors='coerce').round(4)
 
-    pivot_df = pivot_df.pivot_table(index=['Product', 'Metric'], columns='Group', values='Value', aggfunc='first').reset_index()
-    pivot_df.columns = ['_'.join(col).strip() if type(col) is tuple else col for col in pivot_df.columns.values]
-    pivot_df = pivot_df.rename(columns={'Product_': 'Product', 'Metric_': 'Metric'})
-    
-    metric_order = ['Sample Size (Trial)', 'Sample Size (Incumbent)', 'Trial', 'Incumbent','Diff (Trial - Incumbent)', 'P-Value', 'Statistically Different']
-    pivot_df['Metric'] = pd.Categorical(pivot_df['Metric'], categories=metric_order, ordered=True)
-    pivot_df = pivot_df.sort_values(by=['Product', 'Metric']).reset_index(drop=True)
-    table3_df_global = pivot_df.copy()
+        # Determine if there is statistical significance based on the p-values
+        result_df['Statistically Different'] = result_df['P-Value'].apply(lambda p: 'YES' if p < 0.05 else 'NO')
 
-    filtered_df = table3_df_global[table3_df_global['Metric'].isin(['P-Value', 'Diff (Trial - Incumbent)'])]
-    columns_to_convert = filtered_df.columns.difference(['Product', 'Metric'])
-    filtered_df.loc[:, columns_to_convert] = filtered_df.loc[:, columns_to_convert].apply(pd.to_numeric, errors='coerce')
-    filtered_df = filtered_df.replace(0, np.nan)
+        # Drop unnecessary columns
+        result_df = result_df.drop(columns=['Column', 'Attributes'])
+
+        # Pivot the table for better readability
+        pivot_df = result_df.melt(id_vars=['Product', 'Group'], 
+                                  value_vars=['Sample Size (Trial)', 'Sample Size (Incumbent)', 'Trial', 'Incumbent', 'Diff (Trial - Incumbent)', 'P-Value', 'Statistically Different'],
+                                  var_name='Metric', value_name='Value')
+        pivot_df = pivot_df.pivot_table(index=['Product', 'Metric'], columns='Group', values='Value', aggfunc='first').reset_index()
+        pivot_df.columns = ['_'.join(col).strip() if type(col) is tuple else col for col in pivot_df.columns.values]
+        pivot_df = pivot_df.rename(columns={'Product_': 'Product', 'Metric_': 'Metric'})
+
+        # Sort the metrics in a specific order
+        metric_order = ['Sample Size (Trial)', 'Sample Size (Incumbent)', 'Trial', 'Incumbent', 'Diff (Trial - Incumbent)', 'P-Value', 'Statistically Different']
+        pivot_df['Metric'] = pd.Categorical(pivot_df['Metric'], categories=metric_order, ordered=True)
+        pivot_df = pivot_df.sort_values(by=['Product', 'Metric']).reset_index(drop=True)
+        table3_df_global = pivot_df.copy()
+
+    # Create Table 4 for significant differences, filtering only those with 'Statistically Different' = YES
+    filtered_df = table3_df_global[table3_df_global['Metric'] == 'P-Value']
     results = []
-
 
     for product in filtered_df['Product'].unique():
         product_df = filtered_df[filtered_df['Product'] == product]
-        p_values = product_df[product_df['Metric'] == 'P-Value']
-        diffs = product_df[product_df['Metric'] == 'Diff (Trial - Incumbent)']
-    
-        for col in columns_to_convert:
-            p_value = p_values[col].values[0] if col in p_values.columns else np.nan
-            diff_value = diffs[col].values[0] if col in diffs.columns else np.nan
-        
+        p_values = product_df.dropna(axis=1)
+
+        for col in p_values.columns[2:]:  # Skip Product and Metric columns
+            p_value = p_values[col].values[0]
+            diff_value = table3_df_global[(table3_df_global['Product'] == product) & (table3_df_global['Metric'] == 'Diff (Trial - Incumbent)')][col].values[0]
+
             stat_diff = 'Yes' if not np.isnan(p_value) and p_value < 0.05 else 'No'
-        
             assessment = 'Higher' if diff_value > 0 else 'Lower' if diff_value < 0 else 'N/A'
-        
+
             if stat_diff == 'Yes':
                 results.append({
                     'Product': product,
@@ -1041,19 +1108,30 @@ def display_results(test_choice, trial_group, incumbent_group):
                     'Statistically Diff': stat_diff,
                     'Avg Measured Diff': diff_value,
                     'Assessment': assessment
-            })
+                })
+
+    global table4_df_global
     table4_df_global = pd.DataFrame(results)
 
-    table2_df_global = []
-    if test_choice == 'Non-Parametric Test':
-        table2_df_global = npt_results_df_filtered
+    # Display Table 2 (either Non-Parametric or Levene's Test)
+    if not table2_df_global.empty:
+        st.write("**Table 2: Test Results**")
+        st.write(table2_df_global)
+
+    # Display the tables before saving to Excel
+    if not table3_df_global.empty:
+        st.write("**Table 3: Summary of Differences (using selected P-Values)**")
+        st.write(table3_df_global)
+
+    if not table4_df_global.empty:
+        st.write("**Table 4: Statistically Significant Differences**")
+        st.write(table4_df_global)
     else:
-        table2_df_global = levene_pivot_result
-    
-    table2_df_global = table2_df_global.reset_index()
-    table2_df_global = table2_df_global.rename(columns={'Attributes':'Product'})
-    
+        st.warning("Table 4 is empty, no statistically significant differences were found.")
+
+    # Save results to Excel
     save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, table4_df_global, plots_dict)
+
 
 
 def truncate_string_to_three_decimals(value):
@@ -1086,11 +1164,21 @@ import streamlit as st
 import io
 import os
 
+import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, PatternFill, Border, Side
+import streamlit as st
+import io
+import os
+
 def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, table4_df_global, plots_dict):
     """
     Saves the statistical analysis results and plots to an Excel file with appropriate formatting.
     Handles the case when table4_df_global is empty.
     """
+
     # Create the temporary directory path
     temp_dir = '/tmp'
     if not os.path.exists(temp_dir):
@@ -1138,7 +1226,7 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
                 if border:
                     cell.border = border
 
-    # Function to write DataFrame to Excel with styling
+    # Function to write DataFrame to Excel with styling and adjust column width
     def write_dataframe_to_excel(sheet, df, start_row, header_font, header_fill, thin_border):
         for col_num, col_name in enumerate(df.columns, start=1):
             cell = sheet.cell(row=start_row, column=col_num, value=col_name)
@@ -1160,6 +1248,13 @@ def save_results_to_excel(table1_df_global, table2_df_global, table3_df_global, 
                     value = ', '.join(f'{k}: {v}' for k, v in value.items())
                 cell = sheet.cell(row=row_num, column=col_num, value=value)
                 cell.border = thin_border
+
+        # Adjust column widths
+        for col_num, col_cells in enumerate(sheet.iter_cols(min_row=start_row - 1, max_row=row_num), start=1):
+            max_length = max(len(str(cell.value)) for cell in col_cells)
+            adjusted_width = (max_length + 2) * 1.2  # Adding some padding
+            column_letter = get_column_letter(col_num)
+            sheet.column_dimensions[column_letter].width = adjusted_width
 
         return row_num + 5
 
@@ -1226,21 +1321,39 @@ def plot_tukey_CIs(data, group_col, value_col):
         print(f"Skipping Tukey HSD plot for {value_col}: {e}")
         return None
 
-def plot_interval(data, group_col, value_col):
-    fig, ax = plt.subplots()
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-    sns.pointplot(x=group_col, y=value_col, data=data, capsize=.1, errorbar='sd', err_kws={'linewidth': 1.5}, ax=ax)
+def plot_interval(data, group_col, value_col):
+    data.loc[:, group_col] = data[group_col].astype('category')  # Avoid SettingWithCopyWarning
+
+    fig, ax = plt.subplots(figsize=(8, 6))
     
-    # Add a line plot to connect the points
-    ax.plot(data[group_col], data[value_col], linestyle='-', color='red')
+    # Use the updated parameters for Seaborn pointplot
+    sns.pointplot(
+        x=group_col, 
+        y=value_col, 
+        data=data, 
+        capsize=.1, 
+        dodge=True, 
+        errorbar='sd', 
+        linestyle='none', 
+        ax=ax, 
+        color='blue', 
+        err_kws={'linewidth': 2}
+    )
     
-    ax.set_title(f'Interval Plot of {value_col} vs {group_col}\n95% CI for the Mean')
+    ax.set_title(f'Interval Plot of {value_col} vs {group_col} (95% CI for the Mean)')
     ax.set_ylabel(value_col)
     ax.set_xlabel(group_col)
-    ax.grid()
     
-    plt.close(fig)  # Close the figure to avoid displaying it unintentionally
+    plt.tight_layout()
     return fig
+
+
+
+
+
 
 def plot_individual_value(data, group_col, value_col):
     if group_col not in data.columns or value_col not in data.columns:
@@ -1265,76 +1378,115 @@ def plot_individual_value(data, group_col, value_col):
         return None
 
 def plot_boxplot(data, group_col, value_col):
+    """
+    Plots a boxplot for the specified data.
+
+    Parameters:
+    data (pd.DataFrame): The input DataFrame.
+    group_col (str): The name of the column containing group labels.
+    value_col (str): The name of the column containing values to plot.
+
+    Returns:
+    plt.Figure: The matplotlib figure object.
+    """
+    # Convert group_col to object to prevent numerical overlap in group plotting
+    data.loc[:, group_col] = data[group_col].astype('object')
+
+    # Drop rows with missing values
     data = data.dropna(subset=[group_col, value_col])
     
+    # Ensure there are enough groups for plotting
     if data[group_col].nunique() < 2:
         print(f"Not enough groups to plot boxplot for {value_col}. Skipping.")
         return None
-    
-    try:
-        fig, ax = plt.subplots()
 
-        sns.boxplot(x=group_col, y=value_col, data=data, ax=ax)
-        sns.pointplot(x=group_col, y=value_col, data=data, errorbar='sd', color='red', ax=ax)
+    try:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Create the boxplot
+        sns.boxplot(x=group_col, y=value_col, data=data, ax=ax,  hue=group_col, palette="Set2", legend=False)
         
-        group_means = data.groupby(group_col)[value_col].mean().reindex(data[group_col].unique())
-        ax.plot(group_means.index, group_means.values, linestyle='-', color='red')
-        
-        ax.set_title(f'Boxplot of {value_col}')
+        # Set titles and labels
+        ax.set_title(f'Boxplot of {value_col} by {group_col}')
         ax.set_ylabel(value_col)
         ax.set_xlabel(group_col)
-        ax.grid()
-        
-        plt.close(fig)
+        ax.grid(True)
+
+        plt.close(fig)  # Close the figure to avoid displaying it immediately
         return fig
+
     except ValueError as e:
         print(f"Error while plotting boxplot for {value_col}: {e}")
         return None
 
+
+
 def plot_residuals(data, group_col, value_col):
     from statsmodels.formula.api import ols
+    import statsmodels.api as sm
 
+    # Sanitize column names for OLS formula
     sanitized_value_col = value_col.replace('-', '_').replace(' ', '_')
     sanitized_group_col = group_col.replace('-', '_').replace(' ', '_')
-    
+
+    # Drop rows with missing or non-finite values in the relevant columns
     data = data.dropna(subset=[value_col, group_col])
     data = data[np.isfinite(data[value_col])]
-    
-    if data[sanitized_group_col].nunique() < 2 or len(data) < 2:
+
+    if data[group_col].nunique() < 2 or len(data) < 2:
         print(f"Not enough data to fit OLS model for {value_col}. Skipping.")
         return None
-    
+
+    # Rename the columns for the OLS formula
     data = data.rename(columns={value_col: sanitized_value_col, group_col: sanitized_group_col})
+
+    # Build the formula for OLS regression
+    formula = f'{sanitized_value_col} ~ C({sanitized_group_col})'
     
-    formula = f'{sanitized_value_col} ~ {sanitized_group_col}'
+    # Try fitting the OLS model
     try:
         model = ols(formula, data=data).fit()
     except ValueError as e:
         print(f"Error fitting OLS model for {value_col}: {e}")
         return None
-    
+
+    # Get residuals and fitted values
     residuals = model.resid
     fitted = model.fittedvalues
-    
+
+    # Create plots for residual analysis
     fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-    
+
+    # Histogram of residuals
     sns.histplot(residuals, bins=15, kde=True, ax=axs[0, 0])
     axs[0, 0].set_title('Histogram of Residuals')
-    
-    stats.probplot(residuals, dist="norm", plot=axs[0, 1])
+
+    # Normal Probability Plot (Q-Q plot)
+    sm.qqplot(residuals, line='s', ax=axs[0, 1])
     axs[0, 1].set_title('Normal Probability Plot')
-    
+
+    # Residuals vs Fitted Values
     sns.scatterplot(x=fitted, y=residuals, ax=axs[1, 0])
     axs[1, 0].axhline(0, color='r', linestyle='--')
     axs[1, 0].set_title('Residuals vs Fitted Values')
-    
+
+    # Residuals vs Order
     sns.lineplot(x=np.arange(len(residuals)), y=residuals, ax=axs[1, 1])
-    axs[1, 1].set_title('Residuals vs Order')
     axs[1, 1].axhline(0, color='r', linestyle='--')
+    axs[1, 1].set_title('Residuals vs Order')
+
+    # Set an overall title for the plot
+    fig.suptitle(f'Residual Plot of {value_col} by {group_col}', fontsize=16)
+
+    # Adjust layout to make room for the title
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     
-    plt.tight_layout()
+    # Close the figure to prevent it from displaying immediately
     plt.close(fig)
+
     return fig
+
+
 
 # Adjusted function to plot all visualizations for each numerical column against 'GROUP' for each Attribute
 
