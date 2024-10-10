@@ -588,6 +588,113 @@ def perform_anderson_darling_test(filtered_data):
         st.markdown("<span style='color:#12239E; font-weight:bold;'>Invalid Null Hypothesis: Data is not Normally Distributed</span>", unsafe_allow_html=True)
         perform_mgrt_test()
 
+def perform_anderson_darling_test_with_skewness_mgrt(final_df):
+    """
+    Performs the Anderson-Darling test for normality, skewness check, and Minimum Group Records Test (MGRT) 
+    on each numerical column of the final DataFrame after outlier removal.
+    Adds columns in table1_df_global for Anderson Normality Test Result, Skewness Test Result, and MGRT.
+
+    Parameters:
+    final_df (pd.DataFrame): The DataFrame after outlier removal.
+    """
+    global table1_df_global
+
+    # Prepare lists to store the test results
+    ad_results = []
+    skewness_results = []
+    mgrt_results = []
+
+    # Get all numeric columns from the final DataFrame
+    numeric_columns = final_df.select_dtypes(include=[np.number]).columns.tolist()
+
+    # Loop over each unique 'Attributes' in the DataFrame
+    for attr in final_df['Attributes'].unique():
+        # Filter the DataFrame for the specific 'Attributes'
+        group_df = final_df[final_df['Attributes'] == attr]
+        
+        for column in numeric_columns:
+            # Get the non-NaN values of the column
+            data_for_testing = group_df[column].dropna().values
+
+            # Anderson-Darling Test
+            if len(data_for_testing) > 2:  # Anderson-Darling requires at least 3 data points
+                result = stats.anderson(data_for_testing, dist='norm')
+                statistic = result.statistic
+                critical_values = result.critical_values
+                if statistic < critical_values[2]:  # 5% significance level
+                    ad_result = "Yes"  # Data is normally distributed
+                else:
+                    ad_result = "No"   # Data is not normally distributed
+            else:
+                ad_result = "Insufficient Data"
+
+            # Skewness Test
+            skewness = stats.skew(data_for_testing)
+            if -2 <= skewness <= 2:
+                skewness_result = "Yes"  # Skewness within acceptable range
+            else:
+                skewness_result = "No"   # Skewness outside acceptable range
+
+            # MGRT (Minimum Group Records Test)
+            group_sizes = group_df.groupby('GROUP').size()
+            if 2 <= len(group_sizes) <= 9:
+                if all(group_sizes > 15):
+                    mgrt_result = "Yes"
+                else:
+                    mgrt_result = "No"
+            elif 10 <= len(group_sizes) <= 12:
+                if all(group_sizes > 20):
+                    mgrt_result = "Yes"
+                else:
+                    mgrt_result = "No"
+            else:
+                mgrt_result = "No"  # Outside the specified range (2-12)
+
+            # Store the results for the current attribute and variable
+            ad_results.append({
+                'Attributes': attr,
+                'Variable': column,
+                'Anderson Normality Test Result': ad_result
+            })
+            skewness_results.append({
+                'Attributes': attr,
+                'Variable': column,
+                'Skewness Test Result': skewness_result
+            })
+            mgrt_results.append({
+                'Attributes': attr,
+                'Variable': column,
+                'MGRT Test Result': mgrt_result
+            })
+
+    # Convert the results into DataFrames
+    ad_results_df = pd.DataFrame(ad_results)
+    skewness_results_df = pd.DataFrame(skewness_results)
+    mgrt_results_df = pd.DataFrame(mgrt_results)
+
+    # Merge the test results into table1_df_global
+    table1_df_global = pd.merge(table1_df_global, ad_results_df, on=['Attributes', 'Variable'], how='left')
+    table1_df_global = pd.merge(table1_df_global, skewness_results_df, on=['Attributes', 'Variable'], how='left')
+    table1_df_global = pd.merge(table1_df_global, mgrt_results_df, on=['Attributes', 'Variable'], how='left')
+
+    # Display the updated table with Anderson-Darling, Skewness, and MGRT results
+    st.write("**Updated Table with Anderson-Darling, Skewness, and MGRT Test Results:**")
+    st.write(table1_df_global)
+
+    # Check MGRT results and proceed accordingly
+    if mgrt_results_df['MGRT Test Result'].eq("Yes").all():
+        # If all MGRT results are "Yes", proceed to check skewness
+        check_skewness_and_proceed()
+    else:
+        # If MGRT fails, allow the user to select the test to perform
+        selected_test = st.selectbox(
+            'MGRT Test Failed. Choose Next Action:',
+            ['Select', 'Parametric Test (ANOVA)', 'Non-Parametric Test'],
+            key='mgr_test'
+        )
+        handle_choice_1({"Select": "Select", "Parametric Test (ANOVA)": "Equal Variance Test", "Non-Parametric Test": "Non-Parametric Test"}[selected_test])
+
+
 def perform_mgrt_test():
     """
     Performs the Minimum Group Records Test (MGRT) and guides the user to the next step based on the results.
@@ -1426,8 +1533,8 @@ def plot_residuals(data, group_col, value_col):
     import statsmodels.api as sm
 
     # Sanitize column names for OLS formula
-    sanitized_value_col = value_col.replace('-', '_').replace(' ', '_')
-    sanitized_group_col = group_col.replace('-', '_').replace(' ', '_')
+    sanitized_value_col = value_col.replace('-', '_').replace(' ', '_').replace('.','_')
+    sanitized_group_col = group_col.replace('-', '_').replace(' ', '_').replace('.','_')
 
     # Drop rows with missing or non-finite values in the relevant columns
     data = data.dropna(subset=[value_col, group_col])
@@ -1666,7 +1773,8 @@ def main():
                             st.write("**Final DataFrame after Removing Outliers:**")
                             st.write(final_df_global)
                             calculate_and_display_statistics(final_df_global, granularity_choice)
-                            perform_anderson_darling_test(final_df_global)
+                            perform_anderson_darling_test_with_skewness_mgrt(final_df_global)
+                            #perform_anderson_darling_test(final_df_global)
                             plot_all_visualizations(final_df_global)
                             save_category_plots_to_one_excel(plots_dict)
                             
@@ -1686,8 +1794,10 @@ def main():
                     final_df_global = prompt_outlier_removal(final_df_global, outliers_df_global, granularity_choice)
                     st.write("**Final DataFrame after Removing Outliers:**")
                     st.write(final_df_global)
-                    perform_anderson_darling_test(final_df_global)
+                    perform_anderson_darling_test_with_skewness_mgrt(final_df_global)
+                    #perform_anderson_darling_test(final_df_global)
                     plot_all_visualizations(final_df_global)
+
                     save_category_plots_to_one_excel(plots_dict)
                     
                     if table1_df_global is not None:
