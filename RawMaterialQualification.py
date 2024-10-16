@@ -1712,7 +1712,7 @@ def main():
     """
     st.image("Carlisle_MasterLogo_RGB.jpg", width=500)
     
-    st.markdown("""# Data Analysis Automation&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://dummy-link.com" style="font-size:20px; color:#007BFF; font-style:italic;">SOP &#9432;</a>""", unsafe_allow_html=True)
+    st.markdown("""# Data Analysis Automation&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://carlislecompanies.sharepoint.com/:w:/r/sites/CCMGeneral/Polyiso%20Ops%20Alignment%20Sip/_layouts/15/Doc.aspx?sourcedoc=%7B7D4B72B2-DE9A-4B0A-933B-ABB409F8114D%7D&file=SOP-AUTOMATED%20DATA%20ANALYSIS%20FOR%20POLYISO%20TEAM%20(ADAPT)-%202024.docx&action=default&mobileredirect=true" style="font-size:20px; color:#007BFF; font-style:italic;">SOP &#9432;</a>""", unsafe_allow_html=True)
 
     uploaded_file = st.file_uploader("**Upload your Excel file**", type=["xlsx"])
     
