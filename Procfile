@@ -1,1 +1,1 @@
-web: streamlit run RawMaterialQualification.py
+web: streamlit run ADAPT.py
