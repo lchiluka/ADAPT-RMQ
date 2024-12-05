@@ -460,135 +460,47 @@ def find_representative_description(descriptions, threshold=80):
             break
     return representative_description
 
-
-from scipy.stats import chi2
-
-def compute_std_confidence_interval(std, n, alpha=0.05):
+def plot_standard_deviations(column, group_labels, means, std_devs, p_value_1, p_value_2):
     """
-    Computes the confidence interval for standard deviation using a chi-squared distribution.
+    Plots standard deviations with multiple comparison intervals.
 
-    Parameters:
-    std (float): Standard deviation.
-    n (int): Sample size.
-    alpha (float): Significance level (default 0.05).
-
-    Returns:
-    tuple: Lower and upper bounds of the confidence interval.
-    """
-    if n <= 1:
-        return None, None  # Not enough data for CI calculation
-    df = n - 1  # Degrees of freedom
-    lower_bound = std * ((df / chi2.ppf(1 - alpha / 2, df)) ** 0.5)
-    upper_bound = std * ((df / chi2.ppf(alpha / 2, df)) ** 0.5)
-    return lower_bound, upper_bound
-
-from scipy.stats import levene, f, chi2
-from statsmodels.stats.multitest import multipletests
-import matplotlib.pyplot as plt
-import numpy as np
-
-def calculate_pairwise_p_values(groups, std_devs, alpha=0.05):
-    """
-    Calculate pairwise p-values for variance comparisons using F-tests.
-    """
-    p_values = []
-    group_names = []
-    for i in range(len(groups)):
-        for j in range(i + 1, len(groups)):
-            n1, n2 = len(groups[i]), len(groups[j])
-            var1, var2 = std_devs[i]**2, std_devs[j]**2
-            f_stat = var1 / var2 if var1 > var2 else var2 / var1
-            df1, df2 = n1 - 1, n2 - 1
-            p_value = 2 * min(f.cdf(f_stat, df1, df2), 1 - f.cdf(f_stat, df1, df2))
-            p_values.append(p_value)
-            group_names.append(f"Group {i+1} vs Group {j+1}")
-    # Adjust for multiple comparisons
-    adjusted_p_values = multipletests(p_values, method='bonferroni')[1]
-    return group_names, adjusted_p_values
-
-def calculate_simultaneous_cis(std_devs, ns, alpha=0.05):
-    """
-    Calculate simultaneous confidence intervals for standard deviations.
-    """
-    k = len(std_devs)  # Number of groups
-    adjusted_alpha = alpha / k  # Adjust alpha for family-wise error
-    cis = []
-    for std, n in zip(std_devs, ns):
-        df = n - 1
-        lower_bound = std * np.sqrt(df / chi2.ppf(1 - adjusted_alpha / 2, df))
-        upper_bound = std * np.sqrt(df / chi2.ppf(adjusted_alpha / 2, df))
-        cis.append((lower_bound, upper_bound))
-    return cis
-
-def plot_standard_deviations(column, group_labels, groups, alpha=0.05):
-    """
-    Plots standard deviations with Levene's Test, Multiple Comparisons, and Simultaneous CIs.
-    
     Parameters:
     column (str): The column name (dependent variable).
     group_labels (list): The list of group labels (independent variable).
-    groups (list): The list of group data arrays.
-    alpha (float): Significance level for tests.
-    
+    means (list): The list of means for each group.
+    std_devs (list): The list of standard deviations for each group.
+    p_value_1 (float): The p-value from Levene's test.
+    p_value_2 (float): The p-value from ANOVA or Welch's test.
+
     Returns:
     plt.Figure: The matplotlib figure object.
     """
-    # Calculate standard deviations and sample sizes
-    std_devs = [np.std(group, ddof=1) for group in groups]
-    ns = [len(group) for group in groups]
-
-    # Levene's Test for Equal Variances
-    stat, levene_p_value = levene(*groups)
-
-    # Pairwise P-Values (Bonferroni-adjusted)
-    pairwise_names, pairwise_p_values = calculate_pairwise_p_values(groups, std_devs, alpha)
-
-    # Simultaneous Confidence Intervals
-    cis = calculate_simultaneous_cis(std_devs, ns, alpha)
-
-    # Plot the standard deviations with CIs
     fig, ax = plt.subplots(figsize=(10, 6))
-    y_positions = np.arange(len(groups))
-    ax.errorbar(
-        std_devs, y_positions, 
-        xerr=[[std_devs[i] - cis[i][0] for i in range(len(cis))], 
-              [cis[i][1] - std_devs[i] for i in range(len(cis))]],
-        fmt='o', capsize=5, color='blue', label='Standard Deviations (95% CI)'
-    )
 
-    # Annotate Levene's Test P-Value
-    ax.annotate(
-        f"Levene's Test P-Value: {levene_p_value:.3f}",
-        xy=(0.95, 0.9), xycoords='axes fraction', ha='right',
-        bbox=dict(boxstyle='round,pad=0.3', facecolor='lightgray', alpha=0.5)
-    )
+    # Convert group_labels to categorical to ensure proper spacing
+    group_labels = pd.Categorical(group_labels, categories=np.unique(group_labels), ordered=True)
 
-    # Annotate Pairwise Comparisons
-    pairwise_text = "\n".join([f"{pair}: {pval:.3f}" for pair, pval in zip(pairwise_names, pairwise_p_values)])
-    ax.annotate(
-        f"Pairwise Comparisons (Bonferroni):\n{pairwise_text}",
-        xy=(0.95, 0.7), xycoords='axes fraction', ha='right',
-        bbox=dict(boxstyle='round,pad=0.3', facecolor='lightgray', alpha=0.5)
-    )
+    # Plot the means with standard deviation bars
+    ax.errorbar(means, group_labels.codes, xerr=std_devs, fmt='o', capsize=5, capthick=2, elinewidth=2, linestyle='None')
 
+    # Add labels and title
+    ax.set_title(f'Test for Equal Variances: {column} vs GROUP\nMultiple comparison intervals for the standard deviation, α = 0.05')
+    ax.set_ylabel('GROUP')
+    ax.set_xlabel('Standard Deviation')
 
-    # Add annotation at the bottom
-    ax.text(
-        0.5, -0.2,  # X, Y position (relative to axes)
-        "If intervals do not overlap, the corresponding std deviations are significantly different.", ha='center', va='center', fontsize=10, transform=ax.transAxes, wrap=True )
-    
-    
-    # Set plot titles and labels
-    ax.set_title(f"Test for Equal Variances: {column} vs Group")
-    ax.set_yticks(y_positions)
-    ax.set_yticklabels(group_labels)
-    ax.set_xlabel("Standard Deviation")
-    ax.set_ylabel("Groups")
+    # Add p-value annotations
+    plt.figtext(0.95, 0.9, f"Multiple Comparisons\nP-Value (Levene's Test)\nP-Value: {p_value_1:.3f}", bbox={"facecolor": "lightgray", "alpha": 0.5, "pad": 5})
+    plt.figtext(0.95, 0.8, f"P-Value (ANOVA or Welch)\nP-Value: {p_value_2:.3f}", bbox={"facecolor": "lightgray", "alpha": 0.5, "pad": 5})
+
+    # Adjust y-axis ticks to reflect categorical labels
+    ax.set_yticks(range(len(group_labels.categories)))
+    ax.set_yticklabels(group_labels.categories)
+
+    # Add grid and close the figure
     ax.grid(True)
-    plt.tight_layout()
+    plt.close(fig)
 
     return fig
-
 
 
 def handle_choice_1(choice):
@@ -819,8 +731,7 @@ def perform_mgrt_test():
 
 def equal_variance_test():
     """
-    Conducts the equal variance test using Levene's test and ANOVA or Welch's test,
-    and generates standard deviation plots with proper confidence intervals.
+    Conducts the equal variance test using Levene's test and ANOVA or Welch's test, and displays the results.
     """
     global global_levene_results, global_anova_welch_results, global_anova_welch_df_simple, global_levene_df_simple
     descriptions = final_df_global['Attributes']
@@ -829,23 +740,18 @@ def equal_variance_test():
     anova_welch_results = []
     numeric_columns = final_df_global.select_dtypes(include='number').columns
     grouped = final_df_global.groupby('Attributes')
-
+    
     for attr, group_df in grouped:
         for column in numeric_columns:
             if column != 'GROUP':
-                # Prepare data for each group
                 groups = group_df.groupby('GROUP')[column].apply(lambda x: x.dropna().values)
                 group_labels = [label for label, group in zip(groups.index, groups) if len(group) > 0]
-                group_data = [group for group in groups if len(group) > 0]
-                means = [np.mean(group) for group in group_data]
-                std_devs = [np.std(group, ddof=1) for group in group_data]  # Use ddof=1 for sample std deviation
-                
+                means = [np.mean(group) for group in groups if len(group) > 0]
+                std_devs = [np.std(group) for group in groups if len(group) > 0]
                 if not means or not std_devs:
                     continue
-                
                 try:
-                    # Perform Levene's test
-                    stat, p_value_1 = levene(*group_data)
+                    stat, p_value_1 = levene(*[group for group in groups if len(group) > 0])
                     if np.isnan(p_value_1):
                         raise ValueError("NaN P-Value")
                 except:
@@ -864,7 +770,6 @@ def equal_variance_test():
                         'Attributes': attr
                     })
                     continue
-
                 levene_result = 'Equal' if p_value_1 > 0.05 else 'Diff'
                 levene_results.append({
                     'Column': column,
@@ -873,12 +778,12 @@ def equal_variance_test():
                     'Result': levene_result,
                     'Attributes': attr
                 })
-
                 try:
-                    # Perform ANOVA or Welch's test based on Levene's result
                     if p_value_1 > 0.05:
-                        anova_result = f_oneway(*group_data)
+                        anova_result = f_oneway(*[group for group in groups if len(group) > 0])
                         p_value_2 = anova_result.pvalue
+                        if np.isnan(p_value_2):
+                            raise ValueError("NaN P-Value")
                         if p_value_2 > 0.05:
                             result = 'Equal'
                             test_type = 'ANOVA'
@@ -886,10 +791,12 @@ def equal_variance_test():
                             result = 'Diff'
                             test_type = 'ANOVA'
                     else:
-                        desc_stats = [DescrStatsW(group) for group in group_data]
+                        desc_stats = [DescrStatsW(group) for group in groups if len(group) > 0]
                         cm = CompareMeans(*desc_stats)
                         welch_result = cm.ttest_ind(usevar='unequal')
                         p_value_2 = welch_result[1]
+                        if np.isnan(p_value_2):
+                            raise ValueError("NaN P-Value")
                         if p_value_2 > 0.05:
                             result = 'Equal'
                             test_type = 'Welch ANOVA'
@@ -900,11 +807,8 @@ def equal_variance_test():
                     p_value_2 = np.nan
                     result = 'N/A'
                     test_type = 'N/A'
-
-                # Plot the results
-                fig = plot_standard_deviations(column, group_labels, group_data, alpha=0.05)
+                fig = plot_standard_deviations(column, group_labels, means, std_devs, p_value_1, p_value_2)
                 plots_dict.setdefault('standard_deviations', []).append((f'{attr}_{column}', fig))
-                
                 anova_welch_results.append({
                     'Column': column,
                     'ANOVA/Welch P-Value': p_value_2,
@@ -912,7 +816,6 @@ def equal_variance_test():
                     'Test Type': test_type,
                     'Attributes': attr
                 })
-
     
     global_levene_results = pd.DataFrame(levene_results)
     global_anova_welch_results = pd.DataFrame(anova_welch_results)
